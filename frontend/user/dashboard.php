@@ -15,7 +15,6 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'user') {
 </head>
 <body class="bg-gray-100">
     <div class="p-6 max-w-4xl mx-auto">
-        <!-- Nagłówek -->
         <div class="flex justify-between items-center mb-6">
             <h1 class="text-2xl font-bold">Twoje zgłoszenia</h1>
             <div class="flex items-center gap-4">
@@ -24,12 +23,29 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'user') {
             </div>
         </div>
 
-        <!-- Lista zgłoszeń -->
         <div id="ticketList" class="space-y-4"></div>
     </div>
 
-    <!-- Skrypty -->
     <script>
+        function getStatusClass(status) {
+            switch (status) {
+                case 'closed': return 'text-green-600';
+                case 'in_progress': return 'text-green-800';
+                case 'waiting': return 'text-orange-500';
+                case 'resolved':
+                case 'zamkniete': return 'text-black font-bold';
+                default: return 'text-gray-600';
+            }
+        }
+
+        function getPriorityClass(priority) {
+            switch (priority) {
+                case 'high': return 'text-orange-500';
+                case 'critical': return 'text-red-600 font-bold';
+                default: return 'text-gray-600';
+            }
+        }
+
         async function loadTickets() {
             const res = await fetch("../../backend/tickets/list.php");
             const data = await res.json();
@@ -50,7 +66,10 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'user') {
                     <div class="flex justify-between items-center">
                         <div>
                             <h2 class="font-semibold text-lg">${t.title}</h2>
-                            <p class="text-sm text-gray-600">Status: ${t.status} | Priorytet: ${t.priority}</p>
+                            <p class="text-sm">
+                                Status: <span class="${getStatusClass(t.status)}">${t.status}</span> |
+                                Priorytet: <span class="${getPriorityClass(t.priority)}">${t.priority}</span>
+                            </p>
                             <p class="text-xs text-gray-400 mt-1">Utworzone: ${t.created_at}</p>
                         </div>
                         <a href="ticket_details.php?id=${t.id}" class="text-blue-500 hover:underline text-sm">Szczegóły</a>
@@ -65,7 +84,6 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'user') {
             window.location.href = "../login.php";
         }
 
-        // Wczytaj zgłoszenia przy starcie
         loadTickets();
     </script>
 </body>

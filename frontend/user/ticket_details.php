@@ -15,18 +15,20 @@ $ticket_id = $_GET['id'] ?? null;
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-6 max-w-3xl mx-auto">
+    <!-- Szczegóły zgłoszenia -->
     <div id="ticketInfo" class="mb-6"></div>
 
-    <div id="attachments" class="mb-6"></div>
-
+    <!-- Przycisk zamknięcia zgłoszenia -->
     <div class="mb-6">
         <button onclick="closeTicket()" id="closeBtn" class="hidden bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
             Zamknij zgłoszenie
         </button>
     </div>
 
+    <!-- Wiadomości -->
     <div id="messages" class="space-y-3 mb-6"></div>
 
+    <!-- Formularz odpowiedzi -->
     <form id="replyForm" class="bg-white p-4 rounded shadow space-y-3">
         <textarea id="reply" placeholder="Dodaj odpowiedź..." class="w-full p-2 border rounded"></textarea>
         <button class="bg-green-500 text-white px-4 py-2 rounded" type="submit">Wyślij</button>
@@ -54,24 +56,7 @@ $ticket_id = $_GET['id'] ?? null;
                 </div>
             `).join('');
 
-            const attachmentBox = document.getElementById("attachments");
-            if (data.attachments.length > 0) {
-                attachmentBox.innerHTML = `
-                    <h3 class="font-semibold mb-2">Załączniki:</h3>
-                    <ul class="list-disc ml-5 space-y-1">
-                        ${data.attachments.map(a => `
-                            <li>
-                                <a href="../../uploads/${a.file_path}" target="_blank" class="text-blue-500 underline">
-                                    ${a.file_name}
-                                </a>
-                            </li>
-                        `).join('')}
-                    </ul>
-                `;
-            } else {
-                attachmentBox.innerHTML = '';
-            }
-
+            // Pokaż przycisk "Zamknij zgłoszenie" tylko jeśli nie jest zamknięte
             if (data.ticket.status !== "closed") {
                 document.getElementById("closeBtn").classList.remove("hidden");
             } else {
@@ -108,9 +93,10 @@ $ticket_id = $_GET['id'] ?? null;
             });
 
             alert("Zgłoszenie zostało zamknięte.");
-            loadTicket();
+            loadTicket(); // Odśwież widok
         }
 
+        // Start
         loadTicket();
     </script>
 </body>

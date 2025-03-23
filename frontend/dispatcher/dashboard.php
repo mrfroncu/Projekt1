@@ -98,10 +98,11 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'dispatcher') {
                     <div class="flex justify-between items-center">
                         <div>
                             <h2 class="font-semibold">${t.title}</h2>
-                            <p class="text-sm">
-                                <span class="${getStatusClass(t.status)}">Status: ${t.status}</span> |
-                                <span class="${getPriorityClass(t.priority)}">Priorytet: ${t.priority}</span>
-                            </p>
+                                <p class="text-sm">
+                                    Status: <span class="${getStatusClass(t.status)}">${t.status}</span> |
+                                    Priorytet: <span class="${getPriorityClass(t.priority)}">${t.priority}</span>
+                                </p>
+
                         </div>
                         <div class="text-right">
                             ${assigned}<br>
