@@ -7,14 +7,13 @@ if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'support') {
     exit;
 }
 
-// Pobierz supportów
 $supports = $pdo->query("SELECT id, username, first_name, last_name, avatar FROM users WHERE role = 'support'")->fetchAll(PDO::FETCH_ASSOC);
 
-// Pobierz zgłoszenia
 $tickets = $pdo->query("
     SELECT t.*, u.username AS author_name 
     FROM tickets t
     JOIN users u ON t.user_id = u.id
+    WHERE t.deleted_at IS NULL
     ORDER BY t.created_at DESC
 ")->fetchAll(PDO::FETCH_ASSOC);
 ?>
@@ -26,18 +25,37 @@ $tickets = $pdo->query("
     <title>Dashboard - Support</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
-        .ticket-box { min-height: 150px; }
+        .dropzone {
+            min-height: 200px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 10px;
+            background-color: #f8fafc;
+            transition: background-color 0.2s ease;
+        }
+        .dropzone.dragover {
+            background-color: #e0f2fe;
+            border-color: #3b82f6;
+        }
+        .ticket { user-select: auto; }
+        .ticket.dragging {
+            opacity: 0.8;
+            transform: scale(1.03);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+            transition: transform 0.2s ease, opacity 0.2s ease;
+            z-index: 50;
+        }
     </style>
 </head>
 <body class="flex h-screen bg-gray-100">
 
-<!-- Sidebar -->
 <aside class="w-64 bg-white shadow-lg p-4 space-y-4">
     <h2 class="text-xl font-bold">📋 Menu</h2>
     <nav class="space-y-2">
         <a href="dashboard.php" class="block text-blue-600 font-bold">🏠 Tickety</a>
         <a href="new_ticket.php" class="block text-blue-600">➕ Nowe zgłoszenie</a>
         <a href="profile.php" class="block text-blue-600">👤 Mój profil</a>
+        <a href="trash.php" class="block text-blue-600">🗑️ Kosz</a>
         <form method="POST" action="../../backend/auth/logout.php">
             <button type="submit" class="text-red-500 hover:underline mt-4">🚪 Wyloguj</button>
         </form>
@@ -45,12 +63,13 @@ $tickets = $pdo->query("
 </aside>
 
 <main class="flex-1 p-6 overflow-x-auto">
-    <h1 class="text-2xl font-bold mb-6">Przypisane tickety</h1>
-    <div class="grid grid-cols-1 md:grid-cols-<?= count($supports) + 1 ?> gap-6">
-        <!-- Nieprzypisane -->
+    <h1 class="text-2xl font-bold mb-6">Tickety</h1>
+    <div class="grid grid-cols-<?= count($supports) + 2 ?> gap-6">
+
+        <!-- Nieprzydzielone -->
         <div>
             <h2 class="text-lg font-semibold mb-2">📥 Nieprzydzielone</h2>
-            <div class="space-y-3">
+            <div class="dropzone" data-support-id="">
                 <?php foreach ($tickets as $ticket): ?>
                     <?php if (empty($ticket['assigned_to'])): ?>
                         <?= renderTicket($ticket, $supports) ?>
@@ -59,13 +78,13 @@ $tickets = $pdo->query("
             </div>
         </div>
 
-        <!-- Każdy support -->
+        <!-- Supporty -->
         <?php foreach ($supports as $support): ?>
             <div>
                 <h2 class="text-lg font-semibold mb-2">
                     👤 <?= htmlspecialchars($support['first_name'] ?: $support['username']) ?>
                 </h2>
-                <div class="space-y-3">
+                <div class="dropzone" data-support-id="<?= $support['id'] ?>">
                     <?php foreach ($tickets as $ticket): ?>
                         <?php if ($ticket['assigned_to'] == $support['id']): ?>
                             <?= renderTicket($ticket, $supports) ?>
@@ -74,42 +93,165 @@ $tickets = $pdo->query("
                 </div>
             </div>
         <?php endforeach; ?>
+
+        <!-- Kosz -->
+        <div>
+            <h2 class="text-lg font-semibold mb-2 text-red-600">🗑️ Kosz</h2>
+            <div class="dropzone bg-red-50 border-red-300" data-support-id="delete">
+                <p class="text-center text-sm text-gray-400">Przeciągnij tutaj, aby usunąć</p>
+            </div>
+        </div>
+
     </div>
 </main>
 
+<script>
+    let dragged;
+
+    function showToast(msg) {
+        const toast = document.createElement("div");
+        toast.className = "fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50";
+        toast.innerText = msg;
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    document.querySelectorAll('.drag-handle').forEach(handle => {
+        handle.setAttribute('draggable', 'true');
+        handle.addEventListener('dragstart', e => {
+            dragged = handle.closest('.ticket');
+            dragged.classList.add("dragging");
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', dragged.dataset.ticketId);
+        });
+    });
+
+    document.querySelectorAll('.dropzone').forEach(zone => {
+        zone.addEventListener('dragover', e => {
+            e.preventDefault();
+            zone.classList.add('dragover');
+        });
+
+        zone.addEventListener('dragleave', () => {
+            zone.classList.remove('dragover');
+        });
+
+        zone.addEventListener('drop', async e => {
+            e.preventDefault();
+            zone.classList.remove('dragover');
+            dragged.classList.remove("dragging");
+
+            const ticketId = dragged.dataset.ticketId;
+            const supportId = zone.dataset.supportId;
+
+            if (supportId === "delete") {
+                if (!confirm("Czy na pewno przenieść zgłoszenie do kosza?")) return;
+
+                const res = await fetch("../../backend/tickets/delete.php", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: `ticket_id=${ticketId}`
+                });
+
+                if (res.ok) {
+                    dragged.remove();
+                    showToast("Przeniesiono do kosza!");
+                } else {
+                    showToast("❌ Błąd usuwania");
+                }
+            } else {
+                const res = await fetch("../../backend/tickets/assign.php", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                    body: `ticket_id=${ticketId}&assigned_to=${supportId}`
+                });
+
+                if (res.ok) {
+                    zone.appendChild(dragged);
+                    const select = dragged.querySelector("select[name='assigned_to']");
+                    if (select) select.value = supportId;
+                    showToast("Zgłoszenie przypisane!");
+                } else {
+                    showToast("❌ Błąd przypisania");
+                }
+            }
+        });
+    });
+</script>
+
 <?php
-function renderTicket($ticket, $supports)
-{
+function renderTicket($ticket, $supports) {
     ob_start();
+
+    $assigned = null;
+    if (!empty($ticket['assigned_to'])) {
+        foreach ($supports as $s) {
+            if ($s['id'] == $ticket['assigned_to']) {
+                $assigned = $s;
+                break;
+            }
+        }
+    }
+
+    // Styl dla statusu
+    $status_text = ucfirst(str_replace('_', ' ', $ticket['status']));
+    $status_class = match($ticket['status']) {
+        'open' => 'text-green-500',
+        'in_progress' => 'text-green-700 font-bold',
+        'waiting' => 'text-orange-500',
+        'resolved' => 'text-blue-500',
+        'closed' => 'text-black font-bold',
+        default => 'text-gray-500'
+    };
+
+    // Styl dla impact (priority)
+    $priority_class = match($ticket['priority']) {
+        'high' => 'text-orange-500',
+        'critical' => 'text-red-600 font-bold',
+        default => 'text-gray-600'
+    };
     ?>
-    <div class="bg-white p-4 rounded shadow">
-        <h3 class="font-semibold"><?= htmlspecialchars($ticket['title']) ?></h3>
-        <p class="text-sm text-gray-600">Autor: <?= htmlspecialchars($ticket['author_name']) ?></p>
-        <p class="text-sm text-gray-400">Priorytet: <?= $ticket['priority'] ?> | Status: <?= $ticket['status'] ?></p>
+    <div class="bg-white rounded shadow mb-3 ticket" data-ticket-id="<?= $ticket['id'] ?>">
+        <div class="bg-gray-200 px-2 py-1 text-sm font-medium flex items-center cursor-move drag-handle rounded-t">
+            <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 9h16M4 15h16" />
+            </svg>
+            Przeciągnij
+        </div>
 
-        <form action="../../backend/tickets/assign.php" method="POST" class="mt-2 text-sm">
-            <input type="hidden" name="ticket_id" value="<?= $ticket['id'] ?>">
-            <select name="assigned_to" class="w-full border p-1 rounded">
-                <option value="">-- Nieprzydzielony --</option>
-                <?php foreach ($supports as $s): ?>
-                    <option value="<?= $s['id'] ?>" <?= $ticket['assigned_to'] == $s['id'] ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($s['first_name'] ?: $s['username']) ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-            <button type="submit" class="mt-1 bg-blue-500 text-white px-2 py-1 rounded text-xs">Zapisz</button>
-        </form>
-
-        <?php if ($ticket['assigned_to']): ?>
-            <div class="flex items-center mt-2 text-sm">
-                <?php
-                $assigned = array_filter($supports, fn($s) => $s['id'] == $ticket['assigned_to']);
-                $assigned = reset($assigned);
-                ?>
-                <img src="../../uploads/avatars/<?= $assigned['avatar'] ?? 'default.png' ?>" class="w-6 h-6 rounded-full mr-2" alt="">
-                <?= htmlspecialchars($assigned['first_name'] ?: $assigned['username']) ?>
+        <div class="p-3 space-y-2 select-text">
+            <div class="flex justify-between items-center">
+                <h3 class="font-semibold"><?= htmlspecialchars($ticket['title']) ?></h3>
+                <a href="ticket_details.php?id=<?= $ticket['id'] ?>" class="text-blue-500 text-sm hover:underline">Szczegóły</a>
             </div>
-        <?php endif; ?>
+
+            <p class="text-sm text-gray-600">Autor: <?= htmlspecialchars($ticket['author_name']) ?></p>
+
+            <p class="text-xs">
+                <span class="font-semibold">Status:</span> <span class="<?= $status_class ?>"><?= $status_text ?></span><br>
+                <span class="font-semibold">Impact:</span> <span class="<?= $priority_class ?>"><?= ucfirst($ticket['priority']) ?></span>
+            </p>
+
+            <form action="../../backend/tickets/assign.php" method="POST">
+                <input type="hidden" name="ticket_id" value="<?= $ticket['id'] ?>">
+                <select name="assigned_to" class="w-full border p-1 rounded text-sm mt-1">
+                    <option value="">-- Nieprzydzielony --</option>
+                    <?php foreach ($supports as $s): ?>
+                        <option value="<?= $s['id'] ?>" <?= $ticket['assigned_to'] == $s['id'] ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($s['first_name'] ?: $s['username']) ?>
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+                <button type="submit" class="w-full bg-blue-500 text-white text-xs mt-1 py-1 rounded">Zapisz</button>
+            </form>
+
+            <?php if ($assigned): ?>
+                <div class="flex items-center mt-1 text-sm text-gray-700">
+                    <img src="../../uploads/avatars/<?= $assigned['avatar'] ?? 'default.png' ?>" class="w-6 h-6 rounded-full mr-2" alt="">
+                    <?= htmlspecialchars($assigned['first_name'] ?: $assigned['username']) ?>
+                </div>
+            <?php endif; ?>
+        </div>
     </div>
     <?php
     return ob_get_clean();
