@@ -15,23 +15,15 @@ $ticket_id = $_GET['id'] ?? null;
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
 <body class="bg-gray-100 p-6 max-w-3xl mx-auto">
-    <!-- Szczegóły zgłoszenia -->
     <div id="ticketInfo" class="mb-6"></div>
 
-    <!-- Przycisk zamknięcia zgłoszenia -->
-    <div class="mb-6">
-        <button onclick="closeTicket()" id="closeBtn" class="hidden bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600">
-            Zamknij zgłoszenie
-        </button>
-    </div>
-
-    <!-- Wiadomości -->
     <div id="messages" class="space-y-3 mb-6"></div>
 
-    <!-- Formularz odpowiedzi -->
-    <form id="replyForm" class="bg-white p-4 rounded shadow space-y-3">
-        <textarea id="reply" placeholder="Dodaj odpowiedź..." class="w-full p-2 border rounded"></textarea>
+    <form id="replyForm" enctype="multipart/form-data" class="bg-white p-4 rounded shadow space-y-3">
+        <textarea id="reply" placeholder="Dodaj odpowiedź..." class="w-full p-2 border rounded" required></textarea>
+        <input type="file" id="attachment" class="w-full p-2 border rounded" />
         <button class="bg-green-500 text-white px-4 py-2 rounded" type="submit">Wyślij</button>
+        <p id="error" class="text-red-500 text-sm mt-2"></p>
     </form>
 
     <script>
@@ -53,50 +45,82 @@ $ticket_id = $_GET['id'] ?? null;
                     <p class="font-semibold">${msg.username}</p>
                     <p>${msg.message}</p>
                     <p class="text-xs text-gray-500">${msg.created_at}</p>
+                    ${msg.attachments && msg.attachments.length > 0 ? `
+                        <div class="mt-2 text-sm">
+                            <strong>Załączniki:</strong>
+                            <ul class="list-disc ml-5">
+                                ${msg.attachments.map(a => `
+                                    <li>
+                                        <a href="../../uploads/${a.file_path}" target="_blank" class="text-blue-500 underline">
+                                            ${a.file_name}
+                                        </a>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
                 </div>
             `).join('');
-
-            // Pokaż przycisk "Zamknij zgłoszenie" tylko jeśli nie jest zamknięte
-            if (data.ticket.status !== "closed") {
-                document.getElementById("closeBtn").classList.remove("hidden");
-            } else {
-                document.getElementById("closeBtn").classList.add("hidden");
-            }
         }
 
         document.getElementById("replyForm").addEventListener("submit", async e => {
             e.preventDefault();
-            const message = document.getElementById("reply").value;
 
-            if (message.trim() === "") return;
+            const message = document.getElementById("reply").value.trim();
+            const file = document.getElementById("attachment").files[0];
+            const errorEl = document.getElementById("error");
+            errorEl.textContent = "";
 
-            const res = await fetch("../../backend/tickets/respond.php", {
-                method: "POST",
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ticket_id: ticketId, message})
-            });
+            if (!message) {
+                errorEl.textContent = "Wiadomość nie może być pusta.";
+                return;
+            }
 
-            const data = await res.json();
-            if (data.success) {
-                document.getElementById("reply").value = "";
-                loadTicket();
+            console.log("➡ Wysyłanie wiadomości...");
+
+            try {
+                const response = await fetch("../../backend/tickets/respond.php", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ ticket_id: ticketId, message })
+                });
+
+                const data = await response.json();
+                console.log("✅ Odpowiedź z respond.php:", data);
+
+                if (data.success && data.message_id) {
+                    if (file) {
+                        console.log("➡ Załącznik wykryty, rozpoczynam upload...");
+
+                        const formData = new FormData();
+                        formData.append("file", file);
+                        formData.append("message_id", data.message_id);
+
+                        const uploadRes = await fetch("../../backend/tickets/upload_attachment.php", {
+                            method: "POST",
+                            body: formData
+                        });
+
+                        const uploadData = await uploadRes.json();
+                        console.log("✅ Odpowiedź z upload_attachment.php:", uploadData);
+
+                        if (!uploadData.success) {
+                            errorEl.textContent = "Błąd uploadu: " + uploadData.error;
+                        }
+                    }
+
+                    document.getElementById("reply").value = "";
+                    document.getElementById("attachment").value = "";
+                    loadTicket();
+                } else {
+                    errorEl.textContent = "Błąd zapisu wiadomości.";
+                }
+            } catch (err) {
+                console.error("❌ Błąd po stronie JS lub sieci:", err);
+                errorEl.textContent = "Nie udało się wysłać wiadomości.";
             }
         });
 
-        async function closeTicket() {
-            if (!confirm("Czy na pewno chcesz zamknąć to zgłoszenie?")) return;
-
-            await fetch("../../backend/support/update_status.php", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ ticket_id: ticketId, status: "closed" })
-            });
-
-            alert("Zgłoszenie zostało zamknięte.");
-            loadTicket(); // Odśwież widok
-        }
-
-        // Start
         loadTicket();
     </script>
 </body>

@@ -1,50 +1,45 @@
 <?php
 require_once "../config.php";
+header("Content-Type: application/json");
 
 $ticket_id = $_GET['id'] ?? null;
 
-if (!$ticket_id || !isset($_SESSION['user'])) {
-    http_response_code(400);
-    echo json_encode(["error" => "Invalid request"]);
+if (!$ticket_id) {
+    echo json_encode(["error" => "Brak ID zgłoszenia"]);
     exit;
 }
 
-// Pobranie szczegółów zgłoszenia
+// Pobierz zgłoszenie
 $stmt = $pdo->prepare("SELECT * FROM tickets WHERE id = ?");
 $stmt->execute([$ticket_id]);
 $ticket = $stmt->fetch(PDO::FETCH_ASSOC);
 
-// Sprawdzenie uprawnień
-$user = $_SESSION['user'];
-if (
-    $user['role'] === 'user' && $ticket['user_id'] !== $user['id'] ||
-    $user['role'] === 'support' && $ticket['assigned_to'] !== $user['id']
-) {
-    http_response_code(403);
-    echo json_encode(["error" => "Unauthorized"]);
+if (!$ticket) {
+    echo json_encode(["error" => "Zgłoszenie nie istnieje"]);
     exit;
 }
 
-// Wiadomości
-$msg_stmt = $pdo->prepare("
-    SELECT tm.*, u.username 
-    FROM ticket_messages tm 
-    JOIN users u ON tm.sender_id = u.id 
-    WHERE ticket_id = ? ORDER BY created_at ASC
+// Pobierz wiadomości z nazwami użytkowników
+$messagesStmt = $pdo->prepare("
+    SELECT m.*, u.username 
+    FROM ticket_messages m 
+    JOIN users u ON m.sender_id = u.id 
+    WHERE m.ticket_id = ? 
+    ORDER BY m.created_at ASC
 ");
-$msg_stmt->execute([$ticket_id]);
-$messages = $msg_stmt->fetchAll(PDO::FETCH_ASSOC);
+$messagesStmt->execute([$ticket_id]);
+$messages = $messagesStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Załączniki
-$att_stmt = $pdo->prepare("
-    SELECT * FROM ticket_attachments WHERE ticket_id = ?
-");
-$att_stmt->execute([$ticket_id]);
-$attachments = $att_stmt->fetchAll(PDO::FETCH_ASSOC);
+// Pobierz załączniki dla każdej wiadomości
+foreach ($messages as &$msg) {
+    $attachmentsStmt = $pdo->prepare("SELECT file_path, file_name FROM ticket_attachments WHERE message_id = ?");
+    $attachmentsStmt->execute([$msg['id']]);
+    $msg['attachments'] = $attachmentsStmt->fetchAll(PDO::FETCH_ASSOC);
+}
 
 echo json_encode([
     "ticket" => $ticket,
-    "messages" => $messages,
-    "attachments" => $attachments
+    "messages" => $messages
 ]);
+exit;
 ?>

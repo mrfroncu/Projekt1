@@ -1,24 +1,22 @@
 <?php
 require_once "../config.php";
-
-if (!isset($_SESSION['user'])) {
-    http_response_code(403);
-    echo json_encode(["error" => "Unauthorized"]);
-    exit;
-}
+header("Content-Type: application/json");
 
 $data = json_decode(file_get_contents("php://input"), true);
 $ticket_id = $data['ticket_id'] ?? null;
-$message = $data['message'] ?? '';
+$message = $data['message'] ?? null;
+$user_id = $_SESSION['user']['id'];
 
 if (!$ticket_id || !$message) {
-    http_response_code(400);
-    echo json_encode(["error" => "Missing ticket ID or message"]);
+    echo json_encode(["success" => false, "error" => "Brak danych"]);
     exit;
 }
 
+// Zapisz wiadomość i zwróć ID
 $stmt = $pdo->prepare("INSERT INTO ticket_messages (ticket_id, sender_id, message) VALUES (?, ?, ?)");
-$stmt->execute([$ticket_id, $_SESSION['user']['id'], $message]);
+$stmt->execute([$ticket_id, $user_id, $message]);
+$message_id = $pdo->lastInsertId();
 
-echo json_encode(["success" => true]);
+echo json_encode(["success" => true, "message_id" => $message_id]);
+exit;
 ?>
