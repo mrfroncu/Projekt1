@@ -16,23 +16,14 @@ $ticket_id = $_GET['id'] ?? null;
 </head>
 <body class="bg-gray-100 p-6 max-w-3xl mx-auto">
     <div id="ticketInfo" class="mb-6"></div>
+
     <div id="messages" class="space-y-3 mb-6"></div>
 
-    <form id="replyForm" class="bg-white p-4 rounded shadow space-y-3">
-        <textarea id="reply" placeholder="Dodaj odpowiedź..." class="w-full p-2 border rounded"></textarea>
-
-        <div class="flex items-center gap-3">
-            <label for="status" class="text-sm">Status:</label>
-            <select id="status" class="p-2 border rounded">
-                <option value="open">Otwarte</option>
-                <option value="in_progress">W trakcie</option>
-                <option value="waiting_for_user">Czekam na odpowiedź</option>
-                <option value="resolved">Rozwiązane</option>
-                <option value="closed">Zamknięte</option>
-            </select>
-        </div>
-
-        <button class="bg-green-500 text-white px-4 py-2 rounded" type="submit">Odpowiedz i zmień status</button>
+    <form id="replyForm" enctype="multipart/form-data" class="bg-white p-4 rounded shadow space-y-3">
+        <textarea id="reply" placeholder="Dodaj odpowiedź..." class="w-full p-2 border rounded" required></textarea>
+        <input type="file" id="attachment" class="w-full p-2 border rounded" />
+        <button class="bg-blue-500 text-white px-4 py-2 rounded" type="submit">Wyślij odpowiedź</button>
+        <p id="error" class="text-red-500 text-sm mt-2"></p>
     </form>
 
     <script>
@@ -54,29 +45,68 @@ $ticket_id = $_GET['id'] ?? null;
                     <p class="font-semibold">${msg.username}</p>
                     <p>${msg.message}</p>
                     <p class="text-xs text-gray-500">${msg.created_at}</p>
+                    ${msg.attachments && msg.attachments.length > 0 ? `
+                        <div class="mt-2 text-sm">
+                            <strong>Załączniki:</strong>
+                            <ul class="list-disc ml-5">
+                                ${msg.attachments.map(a => `
+                                    <li>
+                                        <a href="../../uploads/${a.file_path}" target="_blank" class="text-blue-500 underline">
+                                            ${a.file_name}
+                                        </a>
+                                    </li>
+                                `).join('')}
+                            </ul>
+                        </div>
+                    ` : ''}
                 </div>
             `).join('');
         }
 
         document.getElementById("replyForm").addEventListener("submit", async e => {
             e.preventDefault();
-            const message = document.getElementById("reply").value;
-            const status = document.getElementById("status").value;
 
-            await fetch("../../backend/tickets/respond.php", {
+            const message = document.getElementById("reply").value.trim();
+            const file = document.getElementById("attachment").files[0];
+            const errorEl = document.getElementById("error");
+            errorEl.textContent = "";
+
+            if (!message) {
+                errorEl.textContent = "Wiadomość nie może być pusta.";
+                return;
+            }
+
+            const response = await fetch("../../backend/tickets/respond.php", {
                 method: "POST",
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ticket_id: ticketId, message})
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ticket_id: ticketId, message })
             });
 
-            await fetch("../../backend/support/update_status.php", {
-                method: "POST",
-                headers: {'Content-Type': 'application/json'},
-                body: JSON.stringify({ticket_id: ticketId, status})
-            });
+            const data = await response.json();
 
-            document.getElementById("reply").value = "";
-            loadTicket();
+            if (data.success && data.message_id) {
+                if (file) {
+                    const formData = new FormData();
+                    formData.append("file", file);
+                    formData.append("message_id", data.message_id);
+
+                    const uploadRes = await fetch("../../backend/tickets/upload_attachment.php", {
+                        method: "POST",
+                        body: formData
+                    });
+
+                    const uploadData = await uploadRes.json();
+                    if (!uploadData.success) {
+                        errorEl.textContent = "Błąd uploadu: " + uploadData.error;
+                    }
+                }
+
+                document.getElementById("reply").value = "";
+                document.getElementById("attachment").value = "";
+                loadTicket();
+            } else {
+                errorEl.textContent = "Błąd zapisu wiadomości.";
+            }
         });
 
         loadTicket();

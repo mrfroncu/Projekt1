@@ -1,26 +1,44 @@
 <?php
 require_once "../config.php";
+session_start();
 
-if (!isset($_SESSION['user']) || $_SESSION['user']['role'] !== 'user') {
-    http_response_code(403);
-    echo json_encode(["error" => "Unauthorized"]);
-    exit;
-}
-
-$data = json_decode(file_get_contents("php://input"), true);
-
-$title = $data['title'] ?? '';
-$description = $data['description'] ?? '';
-$priority = $data['priority'] ?? 'low';
+$title = $_POST['title'] ?? null;
+$description = $_POST['description'] ?? null;
+$priority = $_POST['priority'] ?? 'medium';
+$user_id = $_SESSION['user']['id'];
 
 if (!$title || !$description) {
-    http_response_code(400);
-    echo json_encode(["error" => "Title and description required"]);
-    exit;
+    die("Brak wymaganych danych");
 }
 
-$stmt = $pdo->prepare("INSERT INTO tickets (user_id, title, description, priority) VALUES (?, ?, ?, ?)");
-$stmt->execute([$_SESSION['user']['id'], $title, $description, $priority]);
+// Utwórz ticket
+$stmt = $pdo->prepare("INSERT INTO tickets (user_id, title, description, priority, status) VALUES (?, ?, ?, ?, 'open')");
+$stmt->execute([$user_id, $title, $description, $priority]);
+$ticket_id = $pdo->lastInsertId();
 
-echo json_encode(["success" => true, "ticket_id" => $pdo->lastInsertId()]);
+// Utwórz pierwszą wiadomość
+$stmt = $pdo->prepare("INSERT INTO ticket_messages (ticket_id, sender_id, message) VALUES (?, ?, ?)");
+$stmt->execute([$ticket_id, $user_id, $description]);
+$message_id = $pdo->lastInsertId();
+
+// Obsłuż załącznik
+if (isset($_FILES['attachment']) && $_FILES['attachment']['error'] === UPLOAD_ERR_OK) {
+    $file = $_FILES['attachment'];
+    $upload_path = __DIR__ . "/../../uploads/messages/$message_id/";
+
+    if (!is_dir($upload_path)) {
+        mkdir($upload_path, 0777, true);
+    }
+
+    $file_name = time() . "_" . basename($file['name']);
+    $full_path = $upload_path . $file_name;
+
+    if (move_uploaded_file($file['tmp_name'], $full_path)) {
+        $stmt = $pdo->prepare("INSERT INTO ticket_attachments (message_id, file_path, file_name) VALUES (?, ?, ?)");
+        $stmt->execute([$message_id, "messages/$message_id/$file_name", $file['name']]);
+    }
+}
+
+header("Location: ../../frontend/user/dashboard.php");
+exit;
 ?>
