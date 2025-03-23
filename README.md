@@ -74,20 +74,20 @@ projekt/
 ## 🧪 Testowe konta
 
 Użytkownik:
-  login: user1
-  hasło: test123
+  login: user
+  hasło: user
 
 Dispatcher:
-  login: dispatcher1
-  hasło: test123
+  login: dispatcher
+  hasło: dispatcher
 
 Support:
-  login: support1
-  hasło: test123
+  login: support
+  hasło: support
 
 ## 📝 Autor
 
-Projekt stworzony przez [Twoje Imię lub Nick].
+Projekt stworzony przez Froncalke.
 
 ## 📄 Licencja
 
