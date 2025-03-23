@@ -9,8 +9,8 @@ if (!$ticket_id) {
     exit;
 }
 
-// Pobierz zgłoszenie
-$stmt = $pdo->prepare("SELECT * FROM tickets WHERE id = ?");
+// Pobierz zgłoszenie + dane autora
+$stmt = $pdo->prepare("SELECT t.*, u.username FROM tickets t JOIN users u ON t.user_id = u.id WHERE t.id = ?");
 $stmt->execute([$ticket_id]);
 $ticket = $stmt->fetch(PDO::FETCH_ASSOC);
 
@@ -19,7 +19,7 @@ if (!$ticket) {
     exit;
 }
 
-// Pobierz wiadomości z nazwami użytkowników
+// Pobierz wiadomości + nadawców
 $messagesStmt = $pdo->prepare("
     SELECT m.*, u.username 
     FROM ticket_messages m 
@@ -30,7 +30,7 @@ $messagesStmt = $pdo->prepare("
 $messagesStmt->execute([$ticket_id]);
 $messages = $messagesStmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Pobierz załączniki dla każdej wiadomości
+// Załączniki dla wiadomości
 foreach ($messages as &$msg) {
     $attachmentsStmt = $pdo->prepare("SELECT file_path, file_name FROM ticket_attachments WHERE message_id = ?");
     $attachmentsStmt->execute([$msg['id']]);

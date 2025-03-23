@@ -14,17 +14,31 @@ $ticket_id = $_GET['id'] ?? null;
     <title>Szczegóły zgłoszenia</title>
     <script src="https://cdn.tailwindcss.com"></script>
 </head>
-<body class="bg-gray-100 p-6 max-w-3xl mx-auto">
-    <div id="ticketInfo" class="mb-6"></div>
+<body class="flex h-screen bg-gray-100">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-white shadow-lg p-4 space-y-4">
+        <h2 class="text-xl font-bold">📋 Menu</h2>
+        <nav class="space-y-2">
+            <a href="dashboard.php" class="block text-blue-600 hover:underline">🏠 Wszystkie tickety</a>
+            <a href="new_ticket.php" class="block text-blue-600 hover:underline">➕ Nowe zgłoszenie</a>
+            <form method="POST" action="../../backend/auth/logout.php">
+                <button type="submit" class="text-red-500 hover:underline">🚪 Wyloguj</button>
+            </form>
+        </nav>
+    </aside>
 
-    <div id="messages" class="space-y-3 mb-6"></div>
+    <!-- Main -->
+    <main class="flex-1 p-6 overflow-y-auto">
+        <div id="ticketInfo" class="mb-6"></div>
+        <div id="messages" class="space-y-3 mb-6"></div>
 
-    <form id="replyForm" enctype="multipart/form-data" class="bg-white p-4 rounded shadow space-y-3">
-        <textarea id="reply" placeholder="Dodaj odpowiedź..." class="w-full p-2 border rounded" required></textarea>
-        <input type="file" id="attachment" class="w-full p-2 border rounded" />
-        <button class="bg-blue-500 text-white px-4 py-2 rounded" type="submit">Wyślij odpowiedź</button>
-        <p id="error" class="text-red-500 text-sm mt-2"></p>
-    </form>
+        <form id="replyForm" enctype="multipart/form-data" class="bg-white p-4 rounded shadow space-y-3">
+            <textarea id="reply" placeholder="Dodaj odpowiedź..." class="w-full p-2 border rounded" required></textarea>
+            <input type="file" id="attachment" class="w-full p-2 border rounded" />
+            <button class="bg-blue-500 text-white px-4 py-2 rounded" type="submit">Wyślij odpowiedź</button>
+            <p id="error" class="text-red-500 text-sm mt-2"></p>
+        </form>
+    </main>
 
     <script>
         const ticketId = <?= json_encode($ticket_id) ?>;
@@ -35,7 +49,10 @@ $ticket_id = $_GET['id'] ?? null;
 
             document.getElementById("ticketInfo").innerHTML = `
                 <h1 class="text-xl font-bold">${data.ticket.title}</h1>
-                <p class="text-sm text-gray-600">Status: ${data.ticket.status}, Priorytet: ${data.ticket.priority}</p>
+                <p class="text-sm text-gray-600">
+                    Autor: <span class="text-black font-semibold">${data.ticket.username}</span> |
+                    Status: ${data.ticket.status}, Priorytet: ${data.ticket.priority}
+                </p>
                 <p class="mt-2">${data.ticket.description}</p>
             `;
 
