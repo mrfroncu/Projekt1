@@ -47,26 +47,27 @@ $tickets = $pdo->query("
         }
     </style>
 </head>
-<body class="flex h-screen bg-gray-100">
+<body class="flex min-h-screen bg-gray-100">
 
+<!-- Sidebar -->
 <aside class="w-64 bg-white shadow-lg p-4 space-y-4">
     <h2 class="text-xl font-bold">📋 Menu</h2>
     <nav class="space-y-2">
         <a href="dashboard.php" class="block text-blue-600 font-bold">🏠 Tickety</a>
         <a href="new_ticket.php" class="block text-blue-600">➕ Nowe zgłoszenie</a>
-        <a href="profile.php" class="block text-blue-600">👤 Mój profil</a>
         <a href="trash.php" class="block text-blue-600">🗑️ Kosz</a>
+        <a href="profile.php" class="block text-blue-600">👤 Mój profil</a>
         <form method="POST" action="../../backend/auth/logout.php">
             <button type="submit" class="text-red-500 hover:underline mt-4">🚪 Wyloguj</button>
         </form>
     </nav>
 </aside>
 
-<main class="flex-1 p-6 overflow-x-auto">
+<!-- Main -->
+<main class="flex-1 p-6 pb-24">
     <h1 class="text-2xl font-bold mb-6">Tickety</h1>
     <div class="grid grid-cols-<?= count($supports) + 2 ?> gap-6">
-
-        <!-- Nieprzydzielone -->
+        <!-- NIEPRZYDZIELONE -->
         <div>
             <h2 class="text-lg font-semibold mb-2">📥 Nieprzydzielone</h2>
             <div class="dropzone" data-support-id="">
@@ -77,12 +78,11 @@ $tickets = $pdo->query("
                 <?php endforeach; ?>
             </div>
         </div>
-
-        <!-- Supporty -->
+        <!-- SUPPORTY -->
         <?php foreach ($supports as $support): ?>
             <div>
                 <h2 class="text-lg font-semibold mb-2">
-                    👤 <?= htmlspecialchars($support['first_name'] ?: $support['username']) ?>
+                    👤 <?= htmlspecialchars(trim($support['first_name'] . ' ' . $support['last_name']) ?: $support['username']) ?>
                 </h2>
                 <div class="dropzone" data-support-id="<?= $support['id'] ?>">
                     <?php foreach ($tickets as $ticket): ?>
@@ -94,91 +94,108 @@ $tickets = $pdo->query("
             </div>
         <?php endforeach; ?>
 
-        <!-- Kosz -->
+        <!-- KOSZ -->
         <div>
             <h2 class="text-lg font-semibold mb-2 text-red-600">🗑️ Kosz</h2>
             <div class="dropzone bg-red-50 border-red-300" data-support-id="delete">
                 <p class="text-center text-sm text-gray-400">Przeciągnij tutaj, aby usunąć</p>
             </div>
         </div>
-
     </div>
 </main>
 
+<!-- Footer -->
+<footer class="w-full text-center py-4 text-sm text-gray-500 absolute bottom-0">
+    © Mateusz Fronc - 44905 - WSEI
+</footer>
+
 <script>
-    let dragged;
+let dragged;
 
-    function showToast(msg) {
-        const toast = document.createElement("div");
-        toast.className = "fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50";
-        toast.innerText = msg;
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 3000);
-    }
+function showToast(msg) {
+    const toast = document.createElement("div");
+    toast.className = "fixed bottom-5 right-5 bg-green-600 text-white px-4 py-2 rounded shadow-lg z-50";
+    toast.innerText = msg;
+    document.body.appendChild(toast);
+    setTimeout(() => toast.remove(), 3000);
+}
 
-    document.querySelectorAll('.drag-handle').forEach(handle => {
-        handle.setAttribute('draggable', 'true');
-        handle.addEventListener('dragstart', e => {
-            dragged = handle.closest('.ticket');
-            dragged.classList.add("dragging");
-            e.dataTransfer.effectAllowed = 'move';
-            e.dataTransfer.setData('text/plain', dragged.dataset.ticketId);
-        });
+document.querySelectorAll('.drag-handle').forEach(handle => {
+    handle.setAttribute('draggable', 'true');
+    handle.addEventListener('dragstart', e => {
+        dragged = handle.closest('.ticket');
+        dragged.classList.add("dragging");
+        e.dataTransfer.effectAllowed = 'move';
+        e.dataTransfer.setData('text/plain', dragged.dataset.ticketId);
+    });
+});
+
+document.querySelectorAll('.dropzone').forEach(zone => {
+    zone.addEventListener('dragover', e => {
+        e.preventDefault();
+        zone.classList.add('dragover');
     });
 
-    document.querySelectorAll('.dropzone').forEach(zone => {
-        zone.addEventListener('dragover', e => {
-            e.preventDefault();
-            zone.classList.add('dragover');
-        });
+    zone.addEventListener('dragleave', () => {
+        zone.classList.remove('dragover');
+    });
 
-        zone.addEventListener('dragleave', () => {
-            zone.classList.remove('dragover');
-        });
+    zone.addEventListener('drop', async e => {
+        e.preventDefault();
+        zone.classList.remove('dragover');
+        dragged.classList.remove("dragging");
 
-        zone.addEventListener('drop', async e => {
-            e.preventDefault();
-            zone.classList.remove('dragover');
-            dragged.classList.remove("dragging");
+        const ticketId = dragged.dataset.ticketId;
+        const supportId = zone.dataset.supportId;
 
-            const ticketId = dragged.dataset.ticketId;
-            const supportId = zone.dataset.supportId;
+        if (supportId === "delete") {
+            if (!confirm("Czy na pewno przenieść zgłoszenie do kosza?")) return;
 
-            if (supportId === "delete") {
-                if (!confirm("Czy na pewno przenieść zgłoszenie do kosza?")) return;
+            const res = await fetch("../../backend/tickets/delete.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `ticket_id=${ticketId}`
+            });
 
-                const res = await fetch("../../backend/tickets/delete.php", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                    body: `ticket_id=${ticketId}`
-                });
-
-                if (res.ok) {
-                    dragged.remove();
-                    showToast("Przeniesiono do kosza!");
-                } else {
-                    showToast("❌ Błąd usuwania");
-                }
+            if (res.ok) {
+                dragged.remove();
+                showToast("Przeniesiono do kosza!");
             } else {
-                const res = await fetch("../../backend/tickets/assign.php", {
-                    method: "POST",
-                    headers: { "Content-Type": "application/x-www-form-urlencoded" },
-                    body: `ticket_id=${ticketId}&assigned_to=${supportId}`
-                });
-
-                if (res.ok) {
-                    zone.appendChild(dragged);
-                    const select = dragged.querySelector("select[name='assigned_to']");
-                    if (select) select.value = supportId;
-                    showToast("Zgłoszenie przypisane!");
-                } else {
-                    showToast("❌ Błąd przypisania");
-                }
+                showToast("❌ Błąd usuwania");
             }
-        });
-    });
-</script>
+        } else {
+            const res = await fetch("../../backend/tickets/assign.php", {
+                method: "POST",
+                headers: { "Content-Type": "application/x-www-form-urlencoded" },
+                body: `ticket_id=${ticketId}&assigned_to=${supportId}`
+            });
 
+            if (res.ok) {
+                zone.appendChild(dragged);
+
+                const select = dragged.querySelector("select[name='assigned_to']");
+                if (select) select.value = supportId;
+
+                const assignedDiv = dragged.querySelector(".assigned-support");
+                if (assignedDiv) {
+                    const selectedOption = select.querySelector(`option[value='${supportId}']`);
+                    const fullName = selectedOption ? selectedOption.textContent.trim() : '';
+                    const avatarSrc = selectedOption.dataset.avatar || 'default.png';
+
+                    assignedDiv.innerHTML = `
+                        <img src="../../uploads/avatars/${avatarSrc}" class="w-6 h-6 rounded-full mr-2" alt="">
+                        ${fullName}
+                    `;
+                }
+
+                showToast("Zgłoszenie przypisane!");
+            } else {
+                showToast("❌ Błąd przypisania");
+            }
+        }
+    });
+});
+</script>
 <?php
 function renderTicket($ticket, $supports) {
     ob_start();
@@ -193,7 +210,6 @@ function renderTicket($ticket, $supports) {
         }
     }
 
-    // Styl dla statusu
     $status_text = ucfirst(str_replace('_', ' ', $ticket['status']));
     $status_class = match($ticket['status']) {
         'open' => 'text-green-500',
@@ -204,7 +220,6 @@ function renderTicket($ticket, $supports) {
         default => 'text-gray-500'
     };
 
-    // Styl dla impact (priority)
     $priority_class = match($ticket['priority']) {
         'high' => 'text-orange-500',
         'critical' => 'text-red-600 font-bold',
@@ -224,9 +239,7 @@ function renderTicket($ticket, $supports) {
                 <h3 class="font-semibold"><?= htmlspecialchars($ticket['title']) ?></h3>
                 <a href="ticket_details.php?id=<?= $ticket['id'] ?>" class="text-blue-500 text-sm hover:underline">Szczegóły</a>
             </div>
-
             <p class="text-sm text-gray-600">Autor: <?= htmlspecialchars($ticket['author_name']) ?></p>
-
             <p class="text-xs">
                 <span class="font-semibold">Status:</span> <span class="<?= $status_class ?>"><?= $status_text ?></span><br>
                 <span class="font-semibold">Impact:</span> <span class="<?= $priority_class ?>"><?= ucfirst($ticket['priority']) ?></span>
@@ -237,8 +250,16 @@ function renderTicket($ticket, $supports) {
                 <select name="assigned_to" class="w-full border p-1 rounded text-sm mt-1">
                     <option value="">-- Nieprzydzielony --</option>
                     <?php foreach ($supports as $s): ?>
-                        <option value="<?= $s['id'] ?>" <?= $ticket['assigned_to'] == $s['id'] ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($s['first_name'] ?: $s['username']) ?>
+                        <?php
+                            $fullName = trim($s['first_name'] . ' ' . $s['last_name']);
+                            $avatar = $s['avatar'] ?? 'default.png';
+                        ?>
+                        <option
+                            value="<?= $s['id'] ?>"
+                            data-avatar="<?= htmlspecialchars($avatar) ?>"
+                            <?= $ticket['assigned_to'] == $s['id'] ? 'selected' : '' ?>
+                        >
+                            <?= htmlspecialchars($fullName ?: $s['username']) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
@@ -246,9 +267,10 @@ function renderTicket($ticket, $supports) {
             </form>
 
             <?php if ($assigned): ?>
-                <div class="flex items-center mt-1 text-sm text-gray-700">
+                <?php $fullName = trim($assigned['first_name'] . ' ' . $assigned['last_name']); ?>
+                <div class="flex items-center mt-1 text-sm text-gray-700 assigned-support">
                     <img src="../../uploads/avatars/<?= $assigned['avatar'] ?? 'default.png' ?>" class="w-6 h-6 rounded-full mr-2" alt="">
-                    <?= htmlspecialchars($assigned['first_name'] ?: $assigned['username']) ?>
+                    <?= htmlspecialchars($fullName ?: $assigned['username']) ?>
                 </div>
             <?php endif; ?>
         </div>

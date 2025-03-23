@@ -1,9 +1,8 @@
 <?php
-require_once "../config.php";
+session_start();
+session_unset();
+session_destroy();
 
-if (isset($_SESSION['user'])) {
-    $pdo->prepare("UPDATE users SET is_online = 0 WHERE id = ?")->execute([$_SESSION['user']['id']]);
-    session_destroy();
-}
-
-echo json_encode(["success" => true]);
+// Przekieruj użytkownika na ekran logowania
+header("Location: ../../frontend/login.php");
+exit;
