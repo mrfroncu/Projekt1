@@ -21,7 +21,7 @@ if (!$ticket_id) die("Brak ID ticketa.");
 <body class="flex min-h-screen bg-gray-100">
 
 <!-- Sidebar -->
-<aside class="w-64 bg-white shadow-lg p-4 space-y-4">
+<aside class="w-64 bg-white shadow-lg p-4 space-y-4 flex-shrink-0">
     <h2 class="text-xl font-bold">📋 Menu</h2>
     <nav class="space-y-2">
         <a href="dashboard.php" class="block text-blue-600">🏠 Tickety</a>
@@ -35,21 +35,22 @@ if (!$ticket_id) die("Brak ID ticketa.");
 </aside>
 
 <!-- Main -->
-<main class="flex-1 p-6 pb-24">
-    <div id="ticketInfo" class="mb-6"></div>
-    <div id="messages" class="space-y-3 mb-6"></div>
+<div class="flex flex-col flex-1 p-6">
+    <main class="flex-grow">
+        <div id="ticketInfo" class="mb-6"></div>
+        <div id="messages" class="space-y-3 mb-6"></div>
 
-    <form id="replyForm" enctype="multipart/form-data" class="bg-white p-4 rounded shadow space-y-3">
-        <textarea id="reply" placeholder="Dodaj odpowiedź..." class="w-full p-2 border rounded" required></textarea>
-        <input type="file" id="attachment" class="w-full p-2 border rounded" />
-        <button class="bg-green-500 text-white px-4 py-2 rounded" type="submit">Wyślij</button>
-    </form>
-</main>
+        <form id="replyForm" enctype="multipart/form-data" class="bg-white p-4 rounded shadow space-y-3">
+            <textarea id="reply" placeholder="Dodaj odpowiedź..." class="w-full p-2 border rounded" required></textarea>
+            <input type="file" id="attachment" class="w-full p-2 border rounded" />
+            <button class="bg-green-500 text-white px-4 py-2 rounded" type="submit">Wyślij</button>
+        </form>
+    </main>
 
-<!-- Footer -->
-<footer class="w-full text-center py-4 text-sm text-gray-500 absolute bottom-0">
-    © Mateusz Fronc - 44905 - WSEI
-</footer>
+    <footer class="text-center py-4 text-sm text-gray-500 mt-auto">
+        © Mateusz Fronc - 44905 - WSEI
+    </footer>
+</div>
 
 <script>
 const ticketId = <?= json_encode($ticket_id) ?>;
@@ -61,16 +62,22 @@ async function loadTicket() {
     const ticket = data.ticket;
     const messages = data.messages;
 
+    const statusLabels = {
+        open: "Otwarte",
+        in_progress: "W trakcie",
+        waiting: "Oczekiwanie na odpowiedź",
+        resolved: "Rozwiązane",
+        closed: "Zamknięte"
+    };
+
     document.getElementById("ticketInfo").innerHTML = `
         <h1 class="text-2xl font-bold mb-2">${ticket.title}</h1>
         <p><strong>Opis:</strong> ${ticket.description}</p>
         <p><strong>Status:</strong>
             <select id="statusSelect" class="border p-1 rounded">
-                <option value="open" ${ticket.status === 'open' ? 'selected' : ''}>Open</option>
-                <option value="in_progress" ${ticket.status === 'in_progress' ? 'selected' : ''}>In Progress</option>
-                <option value="waiting" ${ticket.status === 'waiting' ? 'selected' : ''}>Oczekiwanie</option>
-                <option value="resolved" ${ticket.status === 'resolved' ? 'selected' : ''}>Rozwiązane</option>
-                <option value="closed" ${ticket.status === 'closed' ? 'selected' : ''}>Zamknięte</option>
+                ${Object.entries(statusLabels).map(([value, label]) => `
+                    <option value="${value}" ${ticket.status === value ? 'selected' : ''}>${label}</option>
+                `).join('')}
             </select>
         </p>
         <p><strong>Priorytet:</strong> ${ticket.priority}</p>
@@ -79,11 +86,17 @@ async function loadTicket() {
 
     document.getElementById("statusSelect").addEventListener("change", async (e) => {
         const newStatus = e.target.value;
-        await fetch("../../backend/tickets/update_status.php", {
+
+        const res = await fetch("../../backend/tickets/update_status.php", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
             body: `ticket_id=${ticketId}&status=${newStatus}`
         });
+
+        const result = await res.json();
+        if (!result.success) {
+            alert("Błąd zmiany statusu: " + (result.message || ""));
+        }
     });
 
     const messagesContainer = document.getElementById("messages");

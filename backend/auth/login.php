@@ -1,4 +1,5 @@
 <?php
+session_start(); // ← TO BYŁO POMINIĘTE!
 require_once "../config.php";
 
 $data = json_decode(file_get_contents("php://input"), true);
@@ -23,6 +24,5 @@ if ($user && password_verify($password, $user['password'])) {
     echo json_encode(["success" => true, "user" => $_SESSION['user']]);
 } else {
     http_response_code(401);
-    echo json_encode(["error" => "Invalid credentials"]);
+    echo json_encode(["error" => "Nieprawidłowe dane logowania"]);
 }
-?>

@@ -7,6 +7,7 @@
     <script>
         async function login(event) {
             event.preventDefault();
+
             const res = await fetch("../backend/auth/login.php", {
                 method: "POST",
                 headers: {'Content-Type': 'application/json'},
@@ -17,10 +18,20 @@
             });
 
             const data = await res.json();
+
             if (data.success) {
-                window.location.href = "index.php";
+                const role = data.user.role;
+
+                if (role === "user") {
+                    window.location.href = "user/dashboard.php";
+                } else if (role === "support") {
+                    window.location.href = "support/dashboard.php";
+                } else {
+                    alert("Nieznana rola użytkownika.");
+                }
+
             } else {
-                alert(data.error);
+                alert(data.error || "Błąd logowania");
             }
         }
     </script>

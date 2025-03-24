@@ -11,6 +11,14 @@ if ($_SERVER["REQUEST_METHOD"] === "POST") {
         exit;
     }
 
+    // Upewnij się, że status należy do dozwolonych
+    $allowed_statuses = ['open', 'in_progress', 'waiting', 'resolved', 'closed'];
+    if (!in_array($status, $allowed_statuses)) {
+        http_response_code(400);
+        echo json_encode(["success" => false, "message" => "Nieprawidłowy status."]);
+        exit;
+    }
+
     $stmt = $pdo->prepare("UPDATE tickets SET status = ? WHERE id = ?");
     $stmt->execute([$status, $ticket_id]);
 
