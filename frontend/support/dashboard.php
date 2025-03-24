@@ -64,7 +64,8 @@ $tickets = $pdo->query("
 </aside>
 
 <!-- Main -->
-<main class="flex-1 p-6 pb-24">
+<div class="flex flex-col min-h-screen w-full">
+    <main class="flex-1 p-6 pb-24">
     <h1 class="text-2xl font-bold mb-6">Tickety</h1>
     <div class="grid grid-cols-<?= count($supports) + 2 ?> gap-6">
         <!-- NIEPRZYDZIELONE -->
@@ -105,9 +106,10 @@ $tickets = $pdo->query("
 </main>
 
 <!-- Footer -->
-<footer class="w-full text-center py-4 text-sm text-gray-500 absolute bottom-0">
-    © Mateusz Fronc - 44905 - WSEI
-</footer>
+<footer class="w-full text-center py-4 text-sm text-gray-500 bg-white border-t">
+        © Mateusz Fronc - 44905 - WSEI
+    </footer>
+                        </div>
 
 <script>
 let dragged;
