@@ -195,6 +195,57 @@ document.querySelectorAll('.dropzone').forEach(zone => {
         }
     });
 });
+
+function startSlaCountdown() {
+    const timers = document.querySelectorAll('.sla-timer');
+
+    timers.forEach(timer => {
+        const deadline = new Date(timer.dataset.deadline);
+        const status = timer.dataset.status;
+
+        const id = timer.dataset.ticketId;
+
+        const interval = setInterval(() => {
+            const now = new Date();
+            const diff = deadline - now;
+            const minutes = Math.floor(diff / 1000 / 60);
+            const hours = Math.floor(minutes / 60);
+            const seconds = Math.floor((diff / 1000) % 60);
+
+            // Zakończ jeśli ticket zamknięty
+            if (['closed', 'resolved', 'waiting'].includes(status)) {
+                clearInterval(interval);
+                timer.innerHTML = '';
+                return;
+            }
+
+            if (diff > 0) {
+                // Wciąż przed czasem
+                let color = 'text-green-600';
+                let extra = '';
+
+                if (diff <= 3 * 3600 * 1000 && diff > 3600 * 1000) {
+                    color = 'text-orange-500';
+                } else if (diff <= 3600 * 1000) {
+                    color = 'text-red-600 font-bold animate-pulse';
+                    extra = '<div class="text-[10px] text-red-600 mt-0.5">CZAS!</div>';
+                }
+
+                const pad = v => (v < 10 ? '0' + v : v);
+                timer.className = `absolute top-2 right-2 text-xs font-medium sla-timer ${color}`;
+                timer.innerHTML = `${pad(hours)}:${pad(minutes % 60)}:${pad(seconds)}${extra}`;
+            } else {
+                // Po czasie
+                clearInterval(interval);
+                timer.className = "absolute top-2 right-2 text-xs font-bold text-purple-600";
+                timer.innerHTML = "PO CZASIE!";
+            }
+        }, 1000);
+    });
+}
+
+document.addEventListener("DOMContentLoaded", startSlaCountdown);
+
 </script>
 <?php
 function renderTicket($ticket, $supports) {
@@ -234,11 +285,24 @@ function renderTicket($ticket, $supports) {
             Przeciągnij
         </div>
 
-        <div class="p-3 space-y-2 select-text">
-            <div class="flex justify-between items-center">
-                <h3 class="font-semibold"><?= htmlspecialchars($ticket['title']) ?></h3>
-                <a href="ticket_details.php?id=<?= $ticket['id'] ?>" class="text-blue-500 text-sm hover:underline">Szczegóły</a>
-            </div>
+        <div class="p-3 space-y-2 select-text relative">
+        <div>
+    <div class="flex justify-between items-center">
+        <h3 class="font-semibold"><?= htmlspecialchars($ticket['title']) ?></h3>
+        <a href="ticket_details.php?id=<?= $ticket['id'] ?>" class="text-blue-500 text-sm hover:underline">Szczegóły</a>
+    </div>
+
+    <div class="sla-timer text-right"
+     style="display: block; margin-top: 25px;"
+
+         data-deadline="<?= $ticket['sla_deadline'] ?>" 
+         data-status="<?= $ticket['status'] ?>" 
+         data-ticket-id="<?= $ticket['id'] ?>">
+    </div>
+</div>
+
+
+
             <p class="text-sm text-gray-600">Autor: <?= htmlspecialchars($ticket['author_name']) ?></p>
             <p class="text-xs">
                 <span class="font-semibold">Status:</span> <span class="<?= $status_class ?>"><?= $status_text ?></span><br>

@@ -11,8 +11,8 @@ if (!$title || !$description) {
     die("Brak wymaganych danych");
 }
 
-// Utwórz ticket
-$stmt = $pdo->prepare("INSERT INTO tickets (user_id, title, description, priority, status) VALUES (?, ?, ?, ?, 'open')");
+// Utwórz ticket z SLA
+$stmt = $pdo->prepare("INSERT INTO tickets (user_id, title, description, priority, status, sla_deadline) VALUES (?, ?, ?, ?, 'open', NOW() + INTERVAL 24 HOUR)");
 $stmt->execute([$user_id, $title, $description, $priority]);
 $ticket_id = $pdo->lastInsertId();
 
