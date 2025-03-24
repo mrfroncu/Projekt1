@@ -35,7 +35,7 @@ if (!$ticket_id) die("Brak ID ticketa.");
 </aside>
 
 <!-- Main -->
-<div class="flex flex-col flex-1 p-6">
+<div class="flex flex-col flex-1 px-8 py-6 w-full">
     <main class="flex-grow">
         <div id="ticketInfo" class="mb-6"></div>
         <div id="messages" class="space-y-3 mb-6"></div>
@@ -75,8 +75,8 @@ async function loadTicket() {
         <p><strong>Opis:</strong> ${ticket.description}</p>
         <p><strong>Status:</strong>
             <select id="statusSelect" class="border p-1 rounded">
-                ${Object.entries(statusLabels).map(([value, label]) => `
-                    <option value="${value}" ${ticket.status === value ? 'selected' : ''}>${label}</option>
+                ${Object.entries(statusLabels).map(([val, label]) => `
+                    <option value="${val}" ${ticket.status === val ? "selected" : ""}>${label}</option>
                 `).join('')}
             </select>
         </p>
@@ -86,7 +86,6 @@ async function loadTicket() {
 
     document.getElementById("statusSelect").addEventListener("change", async (e) => {
         const newStatus = e.target.value;
-
         const res = await fetch("../../backend/tickets/update_status.php", {
             method: "POST",
             headers: { "Content-Type": "application/x-www-form-urlencoded" },
@@ -95,28 +94,44 @@ async function loadTicket() {
 
         const result = await res.json();
         if (!result.success) {
-            alert("Błąd zmiany statusu: " + (result.message || ""));
+            alert("Błąd zmiany statusu");
         }
     });
 
-    const messagesContainer = document.getElementById("messages");
-    messagesContainer.innerHTML = messages.map(msg => `
-        <div class="bg-white p-3 rounded shadow">
+    const container = document.getElementById("messages");
+    container.innerHTML = "";
+
+    messages.forEach(msg => {
+        const isUserMessage = msg.role === 'user';
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "flex";
+
+        const bubble = document.createElement("div");
+        bubble.className =
+            "p-4 rounded shadow w-[80%] " +
+            (isUserMessage
+                ? "bg-blue-100 text-right ml-auto"
+                : "bg-white text-left mr-auto");
+
+        bubble.innerHTML = `
             <p class="font-semibold">${msg.username}</p>
             <p>${msg.message}</p>
-            <p class="text-xs text-gray-500">${msg.created_at}</p>
+            <p class="text-xs text-gray-500 mt-1">${msg.created_at}</p>
             ${msg.attachments?.length ? `
-                <div class="mt-2">
+                <div class="mt-2 text-sm">
                     <strong>Załączniki:</strong>
-                    <ul class="list-disc ml-5 text-sm">
+                    <ul class="list-disc ml-5">
                         ${msg.attachments.map(a => `
                             <li><a href="../../uploads/${a.file_path}" target="_blank" class="text-blue-500 underline">${a.file_name}</a></li>
                         `).join('')}
                     </ul>
                 </div>
             ` : ''}
-        </div>
-    `).join('');
+        `;
+        wrapper.appendChild(bubble);
+        container.appendChild(wrapper);
+    });
 }
 
 document.getElementById("replyForm").addEventListener("submit", async e => {

@@ -19,9 +19,9 @@ if (!$ticket) {
     exit;
 }
 
-// Pobierz wiadomości + nadawców
+// Pobierz wiadomości + nadawców z rolą
 $messagesStmt = $pdo->prepare("
-    SELECT m.*, u.username 
+    SELECT m.*, u.username, u.role, u.id AS sender_id
     FROM ticket_messages m 
     JOIN users u ON m.sender_id = u.id 
     WHERE m.ticket_id = ? 

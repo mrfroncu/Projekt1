@@ -20,7 +20,9 @@ if (!$ticket_id) die("Brak ID zgłoszenia.");
 </head>
 <body class="min-h-screen bg-gray-100 flex flex-col">
 
-<main class="flex-grow p-6 max-w-3xl mx-auto">
+<main class="flex-grow px-8 py-6 max-w-[1600px] mx-auto">
+    <a href="dashboard.php" class="text-blue-600 hover:underline mb-4 inline-block">⬅️ Powrót do listy zgłoszeń</a>
+
     <div id="ticketInfo" class="mb-6"></div>
     <div id="messages" class="space-y-3 mb-6"></div>
 
@@ -60,24 +62,40 @@ async function loadTicket() {
         <p><strong>Priorytet:</strong> ${ticket.priority}</p>
     `;
 
-    const messagesContainer = document.getElementById("messages");
-    messagesContainer.innerHTML = messages.map(msg => `
-        <div class="bg-white p-3 rounded shadow">
+    const container = document.getElementById("messages");
+    container.innerHTML = "";
+
+    messages.forEach(msg => {
+        const isUserMessage = msg.role === 'user';
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "flex";
+
+        const bubble = document.createElement("div");
+        bubble.className =
+            "p-4 rounded shadow w-[80%] " +
+            (isUserMessage
+                ? "bg-blue-100 text-right ml-auto"
+                : "bg-white text-left mr-auto");
+
+        bubble.innerHTML = `
             <p class="font-semibold">${msg.username}</p>
             <p>${msg.message}</p>
-            <p class="text-xs text-gray-500">${msg.created_at}</p>
+            <p class="text-xs text-gray-500 mt-1">${msg.created_at}</p>
             ${msg.attachments?.length ? `
-                <div class="mt-2">
+                <div class="mt-2 text-sm">
                     <strong>Załączniki:</strong>
-                    <ul class="list-disc ml-5 text-sm">
+                    <ul class="list-disc ml-5">
                         ${msg.attachments.map(a => `
                             <li><a href="../../uploads/${a.file_path}" target="_blank" class="text-blue-500 underline">${a.file_name}</a></li>
                         `).join('')}
                     </ul>
                 </div>
             ` : ''}
-        </div>
-    `).join('');
+        `;
+        wrapper.appendChild(bubble);
+        container.appendChild(wrapper);
+    });
 }
 
 document.getElementById("replyForm").addEventListener("submit", async e => {
