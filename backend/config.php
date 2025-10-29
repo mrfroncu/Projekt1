@@ -2,8 +2,8 @@
 session_start();
 
 $host = "localhost";
-$user = "wiktor";
-$password = "Wisienka@224";
+$user = "";
+$password = "";
 $dbname = "ticket_system";
 
 try {
