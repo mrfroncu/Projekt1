@@ -1,10 +1,10 @@
-# 🛠️ System Zarządzania Zgłoszeniami (Ticket System)
+# System Zarządzania Zgłoszeniami (Ticket System)
 
 System do obsługi zgłoszeń technicznych z trzema typami kont: **użytkownik**, **dispatcher**, **support**. W pełni oparty o PHP, MySQL oraz TailwindCSS.
 
-## 📌 Funkcjonalności
+## Funkcjonalności
 
-### 🔐 Role użytkowników:
+### Role użytkowników:
 
 - **Użytkownik**
   - Tworzy nowe zgłoszenia (ticket)
@@ -25,7 +25,7 @@ System do obsługi zgłoszeń technicznych z trzema typami kont: **użytkownik**
   - Może dodawać załączniki w odpowiedziach
   - Widzi całą historię wątku i załączniki
 
-## ⚙️ Technologie
+## Technologie
 
 - **PHP 8.x**
 - **MySQL 5.x/8.x**
@@ -33,7 +33,7 @@ System do obsługi zgłoszeń technicznych z trzema typami kont: **użytkownik**
 - **TailwindCSS (CDN)**
 - **Chart.js** – wykresy statystyk
 
-## 📁 Struktura katalogów
+## Struktura katalogów
 
 projekt/
 ├── backend/
@@ -50,7 +50,7 @@ projekt/
 ├── database.sql
 └── README.md
 
-## 💾 Instalacja
+## Instalacja
 
 1. Sklonuj repozytorium:
    git clone https://github.com/twoja-nazwa/ticket-system.git
@@ -71,7 +71,7 @@ projekt/
    - Dispatcher: /frontend/dispatcher/login.php
    - Support: /frontend/support/login.php
 
-## 🧪 Testowe konta
+## Testowe konta
 
 Użytkownik:
   login: user
@@ -85,10 +85,10 @@ Support:
   login: support
   hasło: support
 
-## 📝 Autor
+## Autor
 
 Projekt stworzony przez Froncalke.
 
-## 📄 Licencja
+## Licencja
 
 MIT © 2025
